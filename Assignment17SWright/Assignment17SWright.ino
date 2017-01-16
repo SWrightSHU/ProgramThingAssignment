@@ -28,6 +28,7 @@
 #include <Pushbutton.h>
 #include <QTRSensors.h>
 #include <ZumoReflectanceSensorArray.h>
+#include <NewPing.h>
 
 const int ledPin = 13; // the pin that the LED is attached to
 int incomingByte;      // a variable to read incoming serial data into
@@ -56,7 +57,6 @@ void loop() {
                                               !(sensor_values[3] > LFS_THRESHOLD) && !(sensor_values[4] > LFS_THRESHOLD) && !(sensor_values[5] > LFS_THRESHOLD)))
   {
     // if leftmost sensor detects line, reverse and turn to the right
-    Serial.println("I HAVE HIT LEFT WALL");
     motors.setSpeeds(0, 0);
     motors.setSpeeds(-SPEED, -SPEED);
     delay(REVERSE_DURATION);
@@ -71,7 +71,6 @@ void loop() {
                                                                                             sensor_values[3] > SECOND_THRESHOLD || sensor_values[4] > SECOND_THRESHOLD))
   {
     // if rightmost sensor detects line, reverse and turn to the left
-    Serial.println("I HAVE HIT RIGHT WALL");
     motors.setSpeeds(0, 0);
     motors.setSpeeds(-SPEED, -SPEED);
     delay(REVERSE_DURATION);
