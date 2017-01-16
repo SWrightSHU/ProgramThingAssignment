@@ -24,11 +24,23 @@
  */
 
 #include <ZumoMotors.h>
+#include <ZumoBuzzer.h>
+#include <Pushbutton.h>
+#include <QTRSensors.h>
+#include <ZumoReflectanceSensorArray.h>
 
 const int ledPin = 13; // the pin that the LED is attached to
 int incomingByte;      // a variable to read incoming serial data into
 ZumoMotors motors;
+#define LFS_THRESHOLD 300   //Reflection sensor sensitivity
+#define SECOND_THRESHOLD 150
+#define SPEED 100
+#define REVERSE_DURATION  200 // ms
+#define TURN_DURATION     300 // ms
 
+ZumoReflectanceSensorArray sensors(QTR_NO_EMITTER_PIN);
+#define NUM_SENSORS 6
+unsigned int sensor_values[NUM_SENSORS];
 
 void setup() {
   // initialize serial communication:
@@ -38,6 +50,84 @@ void setup() {
 }
 
 void loop() {
+  sensors.read(sensor_values);
+  //TASK 2: Avoiding Walls
+  if ((sensor_values[0] > LFS_THRESHOLD || sensor_values[1] > LFS_THRESHOLD )&& ( !(sensor_values[2] > LFS_THRESHOLD) &&
+                                              !(sensor_values[3] > LFS_THRESHOLD) && !(sensor_values[4] > LFS_THRESHOLD) && !(sensor_values[5] > LFS_THRESHOLD)))
+  {
+    // if leftmost sensor detects line, reverse and turn to the right
+    Serial.println("I HAVE HIT LEFT WALL");
+    motors.setSpeeds(0, 0);
+    motors.setSpeeds(-SPEED, -SPEED);
+    delay(REVERSE_DURATION);
+    motors.setSpeeds(0, 0);
+    motors.setSpeeds(SPEED, -SPEED);
+    delay(TURN_DURATION);
+    motors.setSpeeds(0, 0);
+    motors.setSpeeds(SPEED, SPEED);
+  }
+  // 
+   if ((sensor_values[5] > LFS_THRESHOLD || sensor_values[4] > LFS_THRESHOLD )&& (sensor_values[1] > SECOND_THRESHOLD || sensor_values[2] > SECOND_THRESHOLD ||
+                                                                                            sensor_values[3] > SECOND_THRESHOLD || sensor_values[4] > SECOND_THRESHOLD))
+  {
+    // if rightmost sensor detects line, reverse and turn to the left
+    Serial.println("I HAVE HIT RIGHT WALL");
+    motors.setSpeeds(0, 0);
+    motors.setSpeeds(-SPEED, -SPEED);
+    delay(REVERSE_DURATION);
+    motors.setSpeeds(0, 0);
+    motors.setSpeeds(-SPEED, SPEED);
+    delay(TURN_DURATION);
+    motors.setSpeeds(0, 0);
+    motors.setSpeeds(SPEED, SPEED);
+  }
+
+  //TASK 3: Encountering Wall/Corner Head On   
+  if (sensor_values[1] > SECOND_THRESHOLD || sensor_values[2] > SECOND_THRESHOLD || sensor_values[3] > SECOND_THRESHOLD || sensor_values[4] > SECOND_THRESHOLD)
+        {
+          motors.setSpeeds(0, 0);
+          motors.setSpeeds(-SPEED, -SPEED);
+          delay(REVERSE_DURATION);
+          motors.setSpeeds(0, 0);        
+          Serial.println("Alert! Wall detected! Please enter turn direction using standard turn controls! When device is back on track, press C to continue.");
+          while(!Serial.available() > 0)
+          {
+            
+          }
+          if(Serial.available() > 0)
+          {
+            
+            incomingByte = Serial.read();
+            while (incomingByte != 'C' && incomingByte != 'c')
+            {
+              
+              switch(incomingByte)
+              {
+                case 'D':
+                case 'd': motors.setSpeeds(0, 0);
+                          motors.setSpeeds(SPEED, -SPEED);
+                break;
+
+                case 'A':
+                case 'a': motors.setSpeeds(0,0);
+                          motors.setSpeeds(-SPEED, SPEED);
+                break;
+
+                case ' ': motors.setSpeeds(0, 0);
+                break;
+                
+                default: motors.setSpeeds(0, 0);
+                         Serial.println("Invalid command! A or D are used to turn device! C sets device to continue!");
+                break;
+              }
+              if(Serial.available() > 0)
+                incomingByte = Serial.read();
+            }
+            
+          }
+          motors.setSpeeds(0, 0);
+        }
+  
   // see if there's incoming serial data:
   if (Serial.available() > 0) {
     // read the oldest byte in the serial buffer:
@@ -57,128 +147,42 @@ void loop() {
       case 'W':
       case 'w':
       //case 72:
-            motors.setLeftSpeed(0);
-            motors.setRightSpeed(0);
-
-            motors.setLeftSpeed(100);
-            motors.setRightSpeed(100);
+            motors.setSpeeds(0, 0);
+            motors.setSpeeds(SPEED, SPEED);
+            
       break;
       //All possible values that would indicate "left".
       case 'A':
       case 'a':
       //case  75:
-             motors.setLeftSpeed(0);
-             motors.setRightSpeed(0);
-
-             motors.setLeftSpeed(-100);
-             motors.setRightSpeed(100);
+             motors.setSpeeds(0, 0);
+             motors.setSpeeds(-SPEED, SPEED);
       break;
       //All possible values that would indicate "Backwards".
       case 'S':
       case 's':
       //case  80:
 
-            motors.setLeftSpeed(0);
-            motors.setRightSpeed(0);
-
-            motors.setLeftSpeed(-100);
-            motors.setRightSpeed(-100);
+            motors.setSpeeds(0,0);
+            motors.setSpeeds(-SPEED, -SPEED);
       break;
       //All possible values that would indicate "Right".
       case 'D':
       case 'd':
       //case  78:
-            motors.setLeftSpeed(0);
-            motors.setRightSpeed(0);
+            motors.setSpeeds(0, 0);
 
-            motors.setLeftSpeed(100);
-            motors.setRightSpeed(-100);
+            motors.setSpeeds(SPEED, -SPEED);
       break;
 
-//      case 32: motors.setLeftSpeed(0);
-//               motors.setRightSpeed(0);
-//         break;
-      default: motors.setLeftSpeed(0);
-               motors.setRightSpeed(0);
-               
+      case 32: motors.setSpeeds(0, 0);
+         break;
+      default: motors.setSpeeds(0, 0);
+               Serial.print("Error: Unrecognised command! Inputted value had byte value of: ");
+               Serial.print(incomingByte);
+               Serial.print("\n");
       break;
-    }
-
-
-
-
-    
-    //dO THE ROBOT
-    if (incomingByte == 'D' || incomingByte == 78) {
-      for (int speed = 0; speed <= 200; speed++)
-      {
-        motors.setLeftSpeed(speed);
-        motors.setRightSpeed(-speed);
-        delay(2);
-      }
-
-      for (int speed = 200; speed >= 0; speed--)
-      {
-        motors.setLeftSpeed(speed);
-         motors.setRightSpeed(-speed);
-        delay(2);
-      }
-    }
-    
-    
-    
-    
-//    
-//    if (incomingByte == 'W' || incomingBytw == 72) {
-//      for (int speed = 0; speed <= 200; speed++)
-//      {
-//        motors.setLeftSpeed(speed);
-//        motors.setRightSpeed(speed);
-//        delay(2);
-//      }
-//
-//      for (int speed = 200; speed >= 0; speed--)
-//      {
-//        motors.setLeftSpeed(speed);
-//        motors.setRightSpeed(speed);
-//        delay(2);
-//      }
-//    }
-//    
-//    if (incomingByte == 'S' || incomingByte == 80) {
-//      for (int speed = 0; speed <= 200; speed++)
-//      {
-//        motors.setRightSpeed(-speed);
-//        motors.setLeftSpeed(-speed);
-//        delay(2);
-//      }
-//
-//      for (int speed = 200; speed >= 0; speed--)
-//      {
-//        motors.setRightSpeed(-speed);
-//        motors.setLeftSpeed(-speed);
-//        delay(2);
-//      }
-//    }
-//    
-//    if (incomingByte == 'A' || incomingByte == 75){  
-//      for (int speed = 0; speed <= 200; speed++)
-//      {
-//        motors.setRightSpeed(speed);
-//         motors.setLeftSpeed(-speed);
-//        delay(2);
-//      }
-//
-//      for (int speed = 200; speed >= 0; speed--)
-//      {
-//        motors.setRightSpeed(speed);
-//         motors.setLeftSpeed(-speed);
-//        delay(2);
-//      }
-//       
-//    }
-    
-    
+    }    
   }
 }
 
